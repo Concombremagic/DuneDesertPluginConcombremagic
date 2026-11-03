@@ -13,6 +13,9 @@ import java.util.Random;
 
 public final class DuneGenerator extends ChunkGenerator {
 
+    private static final int BASE_Y = 72;
+    private static final int SPACING = 82;
+
     private static final BiomeProvider DESERT_BIOMES = new BiomeProvider() {
         @Override
         public Biome getBiome(WorldInfo worldInfo, int x, int y, int z) {
@@ -30,7 +33,6 @@ public final class DuneGenerator extends ChunkGenerator {
         return DESERT_BIOMES;
     }
 
-    // Le générateur construit lui-même le terrain.
     @Override
     public boolean shouldGenerateNoise() {
         return true;
@@ -69,9 +71,9 @@ public final class DuneGenerator extends ChunkGenerator {
             int chunkZ,
             ChunkData data
     ) {
-        final long seed = info.getSeed();
-        final int minY = data.getMinHeight();
-        final int maxY = data.getMaxHeight();
+        long seed = info.getSeed();
+        int minY = data.getMinHeight();
+        int maxY = data.getMaxHeight();
 
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {
@@ -114,57 +116,115 @@ public final class DuneGenerator extends ChunkGenerator {
         return duneHeight(info.getSeed(), x, z) + 1;
     }
 
-    // Dunes arrondies de 20 blocs maximum.
-    // Grandes zones plates entre les dunes.
     private static int duneHeight(long seed, int x, int z) {
 
-        final int spacing = 130;
+        // Terrain légèrement vallonné, même entre les dunes.
+        double broad = valueNoise(seed + 111L, x, z, 70.0);
+        double detail = valueNoise(seed + 222L, x, z, 24.0);
+
+        double ground = BASE_Y
+                + broad * 1.8
+                + detail * 0.8;
+
         double highestDune = 0.0;
 
-        int cellX = Math.floorDiv(x, spacing);
-        int cellZ = Math.floorDiv(z, spacing);
+        int cellX = Math.floorDiv(x, SPACING);
+        int cellZ = Math.floorDiv(z, SPACING);
 
+        // On examine les cellules voisines pour éviter les coupures.
         for (int gx = cellX - 1; gx <= cellX + 1; gx++) {
             for (int gz = cellZ - 1; gz <= cellZ + 1; gz++) {
 
-                double offsetX =
-                        hashNoise(seed + 1234L, gx, gz) * 15.0;
+                double centerX = gx * SPACING
+                        + SPACING / 2.0
+                        + hashNoise(seed + 1234L, gx, gz) * 4.0;
 
-                double offsetZ =
-                        hashNoise(seed + 5678L, gx, gz) * 15.0;
+                double centerZ = gz * SPACING
+                        + SPACING / 2.0
+                        + hashNoise(seed + 5678L, gx, gz) * 4.0;
 
-                double centerX =
-                        gx * spacing + spacing / 2.0 + offsetX;
+                // Tailles variées.
+                double radius = 12.0
+                        + unitHash(seed + 333L, gx, gz) * 6.0;
 
-                double centerZ =
-                        gz * spacing + spacing / 2.0 + offsetZ;
+                // Hauteurs : surtout 5 à 15 blocs.
+                double r = unitHash(seed + 444L, gx, gz);
+                double duneHeight;
 
-                double radius =
-                        20.0 + (hashNoise(seed + 9876L, gx, gz) + 1.0) * 4.0;
+                if (r < 0.15) {
+                    duneHeight = 3.0 + unitHash(seed + 445L, gx, gz) * 2.0;
+                } else if (r < 0.90) {
+                    duneHeight = 5.0 + unitHash(seed + 446L, gx, gz) * 10.0;
+                } else {
+                    duneHeight = 16.0 + unitHash(seed + 447L, gx, gz) * 9.0;
+                }
 
                 double dx = x - centerX;
                 double dz = z - centerZ;
 
+                double angle = Math.atan2(dz, dx);
                 double distance = Math.sqrt(dx * dx + dz * dz);
 
-                if (distance < radius) {
+                // Déformation angulaire : dunes non circulaires.
+                double phase1 = unitHash(seed + 555L, gx, gz) * Math.PI * 2.0;
+                double phase2 = unitHash(seed + 666L, gx, gz) * Math.PI * 2.0;
 
-                    double t = distance / radius;
+                double irregularity =
+                        1.0
+                        + 0.16 * Math.sin(angle * 3.0 + phase1)
+                        + 0.09 * Math.sin(angle * 5.0 + phase2)
+                        + 0.05 * Math.sin(angle * 7.0 + phase1 * 0.5);
 
-                    double shape =
-                            0.5 * (1.0 + Math.cos(Math.PI * t));
+                double effectiveRadius = radius * irregularity;
 
-                    double height = 20.0 * shape;
+                if (distance < effectiveRadius) {
+
+                    double t = distance / effectiveRadius;
+
+                    // Pentes irrégulières et sommet moins parfaitement rond.
+                    double shape = 0.5 * (1.0 + Math.cos(Math.PI * t));
+                    shape = Math.pow(shape, 1.25);
+
+                    double height = duneHeight * shape;
 
                     highestDune = Math.max(highestDune, height);
                 }
             }
         }
 
-        return (int) Math.round(72.0 + highestDune);
+        return (int) Math.round(ground + highestDune);
     }
 
-    // Répartition indépendante bloc par bloc : 50/20/20/10.
+    // Bruit interpolé pour éviter un terrain en marches d'escalier.
+    private static double valueNoise(
+            long seed,
+            double x,
+            double z,
+            double scale
+    ) {
+        double nx = x / scale;
+        double nz = z / scale;
+
+        int x0 = (int) Math.floor(nx);
+        int z0 = (int) Math.floor(nz);
+
+        double fx = nx - x0;
+        double fz = nz - z0;
+
+        fx = fx * fx * (3.0 - 2.0 * fx);
+        fz = fz * fz * (3.0 - 2.0 * fz);
+
+        double a = hashNoise(seed, x0, z0);
+        double b = hashNoise(seed, x0 + 1, z0);
+        double c = hashNoise(seed, x0, z0 + 1);
+        double d = hashNoise(seed, x0 + 1, z0 + 1);
+
+        double top = a + (b - a) * fx;
+        double bottom = c + (d - c) * fx;
+
+        return top + (bottom - top) * fz;
+    }
+
     private static Material surfaceMaterial(
             long seed,
             int x,
@@ -181,7 +241,6 @@ public final class DuneGenerator extends ChunkGenerator {
     }
 
     private static double hashNoise(long seed, int x, int z) {
-
         long h = seed;
 
         h ^= (long) x * 0x9E3779B97F4A7C15L;
@@ -192,12 +251,17 @@ public final class DuneGenerator extends ChunkGenerator {
         return ((h >>> 11) * 0x1.0p-52) - 1.0;
     }
 
-    private static double unitHash(
-            long seed,
-            int x,
-            int y,
-            int z
-    ) {
+    private static double unitHash(long seed, int x, int z) {
+        long h = seed
+                ^ ((long) x * 0x9E3779B97F4A7C15L)
+                ^ ((long) z * 0xC2B2AE3D27D4EB4FL);
+
+        h = mix64(h);
+
+        return (h >>> 11) * 0x1.0p-53;
+    }
+
+    private static double unitHash(long seed, int x, int y, int z) {
         long h = seed
                 ^ ((long) x * 0x9E3779B97F4A7C15L)
                 ^ ((long) y * 0xC2B2AE3D27D4EB4FL)
@@ -209,7 +273,6 @@ public final class DuneGenerator extends ChunkGenerator {
     }
 
     private static long mix64(long z) {
-
         z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
         z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
 
