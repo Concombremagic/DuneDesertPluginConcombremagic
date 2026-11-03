@@ -13,8 +13,8 @@ import java.util.Random;
 
 public final class DuneGenerator extends ChunkGenerator {
 
-    private static final int BASE_Y = 72;
-    private static final int SPACING = 360;
+    private static final int BASE_Y = 80;
+    private static final int SPACING = 420;
     private static final double DUNE_CHANCE = 0.28;
 
     private static final BiomeProvider DESERT_BIOMES = new BiomeProvider() {
@@ -122,15 +122,17 @@ public final class DuneGenerator extends ChunkGenerator {
 
     private static int duneHeight(long seed, int x, int z) {
 
-        // Grandes ondulations naturelles plus prononcées.
-        double broad = valueNoise(seed + 111L, x, z, 200.0);
-        double medium = valueNoise(seed + 222L, x, z, 85.0);
-        double detail = valueNoise(seed + 333L, x, z, 32.0);
+        // Très grandes ondulations du terrain.
+        double broad = valueNoise(seed + 111L, x, z, 240.0);
+        double medium = valueNoise(seed + 222L, x, z, 100.0);
+        double detail = valueNoise(seed + 333L, x, z, 38.0);
+        double extra = valueNoise(seed + 888L, x, z, 160.0);
 
         double ground = BASE_Y
-                + broad * 12.0
-                + medium * 6.0
-                + detail * 2.5;
+                + broad * 22.0
+                + medium * 11.0
+                + detail * 4.0
+                + extra * 8.0;
 
         double highestDune = 0.0;
 
@@ -140,26 +142,25 @@ public final class DuneGenerator extends ChunkGenerator {
         for (int gx = cellX - 1; gx <= cellX + 1; gx++) {
             for (int gz = cellZ - 1; gz <= cellZ + 1; gz++) {
 
-                // Toutes les cellules ne contiennent pas une dune.
                 if (unitHash(seed + 777L, gx, gz) > DUNE_CHANCE) {
                     continue;
                 }
 
                 double centerX = gx * SPACING
                         + SPACING / 2.0
-                        + hashNoise(seed + 1234L, gx, gz) * 65.0;
+                        + hashNoise(seed + 1234L, gx, gz) * 75.0;
 
                 double centerZ = gz * SPACING
                         + SPACING / 2.0
-                        + hashNoise(seed + 5678L, gx, gz) * 65.0;
+                        + hashNoise(seed + 5678L, gx, gz) * 75.0;
 
-                // Dunes très larges.
-                double radius = 75.0
-                        + unitHash(seed + 333L, gx, gz) * 65.0;
+                // Dunes géantes.
+                double radius = 100.0
+                        + unitHash(seed + 333L, gx, gz) * 80.0;
 
-                // Hauteur supplémentaire de 7 à 19 blocs.
-                double duneHeight = 7.0
-                        + unitHash(seed + 444L, gx, gz) * 12.0;
+                // Hauteur supplémentaire de 12 à 28 blocs.
+                double duneHeight = 12.0
+                        + unitHash(seed + 444L, gx, gz) * 16.0;
 
                 double dx = x - centerX;
                 double dz = z - centerZ;
@@ -167,14 +168,13 @@ public final class DuneGenerator extends ChunkGenerator {
                 double angle = Math.atan2(dz, dx);
                 double distance = Math.sqrt(dx * dx + dz * dz);
 
-                // Forme légèrement irrégulière.
                 double phase = unitHash(seed + 555L, gx, gz)
                         * Math.PI * 2.0;
 
                 double irregularity =
                         1.0
-                        + 0.10 * Math.sin(angle * 3.0 + phase)
-                        + 0.06 * Math.sin(angle * 5.0 + phase * 0.7);
+                        + 0.12 * Math.sin(angle * 3.0 + phase)
+                        + 0.07 * Math.sin(angle * 5.0 + phase * 0.7);
 
                 double effectiveRadius = radius * irregularity;
 
@@ -182,7 +182,6 @@ public final class DuneGenerator extends ChunkGenerator {
 
                     double t = distance / effectiveRadius;
 
-                    // Pente progressive et sommet arrondi.
                     double shape = 0.5 * (1.0 + Math.cos(Math.PI * t));
                     shape = Math.pow(shape, 1.2);
 
@@ -196,7 +195,6 @@ public final class DuneGenerator extends ChunkGenerator {
         return (int) Math.round(ground + highestDune);
     }
 
-    // Bruit interpolé pour un relief sans marches d'escalier.
     private static double valueNoise(
             long seed,
             double x,
