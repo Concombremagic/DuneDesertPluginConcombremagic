@@ -122,22 +122,21 @@ public final class DuneGenerator extends ChunkGenerator {
 
     private static int duneHeight(long seed, int x, int z) {
 
-        // Grandes ondulations naturelles du désert.
-        double broad = valueNoise(seed + 111L, x, z, 180.0);
-        double medium = valueNoise(seed + 222L, x, z, 75.0);
-        double detail = valueNoise(seed + 333L, x, z, 28.0);
+        // Grandes ondulations naturelles plus prononcées.
+        double broad = valueNoise(seed + 111L, x, z, 200.0);
+        double medium = valueNoise(seed + 222L, x, z, 85.0);
+        double detail = valueNoise(seed + 333L, x, z, 32.0);
 
         double ground = BASE_Y
-                + broad * 4.5
-                + medium * 2.0
-                + detail * 0.7;
+                + broad * 12.0
+                + medium * 6.0
+                + detail * 2.5;
 
         double highestDune = 0.0;
 
         int cellX = Math.floorDiv(x, SPACING);
         int cellZ = Math.floorDiv(z, SPACING);
 
-        // On vérifie les cellules voisines.
         for (int gx = cellX - 1; gx <= cellX + 1; gx++) {
             for (int gz = cellZ - 1; gz <= cellZ + 1; gz++) {
 
@@ -154,13 +153,13 @@ public final class DuneGenerator extends ChunkGenerator {
                         + SPACING / 2.0
                         + hashNoise(seed + 5678L, gx, gz) * 65.0;
 
-                // Dunes très larges : rayon de 70 à 130 blocs.
-                double radius = 70.0
-                        + unitHash(seed + 333L, gx, gz) * 60.0;
+                // Dunes très larges.
+                double radius = 75.0
+                        + unitHash(seed + 333L, gx, gz) * 65.0;
 
-                // Dunes douces, pas forcément hautes.
-                double duneHeight = 4.0
-                        + unitHash(seed + 444L, gx, gz) * 8.0;
+                // Hauteur supplémentaire de 7 à 19 blocs.
+                double duneHeight = 7.0
+                        + unitHash(seed + 444L, gx, gz) * 12.0;
 
                 double dx = x - centerX;
                 double dz = z - centerZ;
@@ -183,7 +182,7 @@ public final class DuneGenerator extends ChunkGenerator {
 
                     double t = distance / effectiveRadius;
 
-                    // Pente très progressive et sommet arrondi.
+                    // Pente progressive et sommet arrondi.
                     double shape = 0.5 * (1.0 + Math.cos(Math.PI * t));
                     shape = Math.pow(shape, 1.2);
 
@@ -266,7 +265,7 @@ public final class DuneGenerator extends ChunkGenerator {
     private static double unitHash(long seed, int x, int y, int z) {
         long h = seed
                 ^ ((long) x * 0x9E3779B97F4A7C15L)
-                ^ ((long) y * 0xC2B2AE3D27EB4FL)
+                ^ ((long) y * 0xC2B2AE3D27D4EB4FL)
                 ^ ((long) z * 0x165667B19E3779F9L);
 
         h = mix64(h);
