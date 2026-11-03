@@ -14,7 +14,8 @@ import java.util.Random;
 public final class DuneGenerator extends ChunkGenerator {
 
     private static final int BASE_Y = 72;
-    private static final int SPACING = 82;
+    private static final int SPACING = 360;
+    private static final double DUNE_CHANCE = 0.28;
 
     private static final BiomeProvider DESERT_BIOMES = new BiomeProvider() {
         @Override
@@ -82,6 +83,7 @@ public final class DuneGenerator extends ChunkGenerator {
                 int worldZ = chunkZ * 16 + z;
 
                 int surfaceY = duneHeight(seed, worldX, worldZ);
+
                 surfaceY = Math.max(
                         minY + 8,
                         Math.min(maxY - 8, surfaceY)
@@ -94,7 +96,9 @@ public final class DuneGenerator extends ChunkGenerator {
 
                     if (depth < 4) {
                         data.setBlock(
-                                x, y, z,
+                                x,
+                                y,
+                                z,
                                 surfaceMaterial(seed, worldX, y, worldZ)
                         );
                     } else {
@@ -118,46 +122,45 @@ public final class DuneGenerator extends ChunkGenerator {
 
     private static int duneHeight(long seed, int x, int z) {
 
-        // Terrain légèrement vallonné, même entre les dunes.
-        double broad = valueNoise(seed + 111L, x, z, 70.0);
-        double detail = valueNoise(seed + 222L, x, z, 24.0);
+        // Grandes ondulations naturelles du désert.
+        double broad = valueNoise(seed + 111L, x, z, 180.0);
+        double medium = valueNoise(seed + 222L, x, z, 75.0);
+        double detail = valueNoise(seed + 333L, x, z, 28.0);
 
         double ground = BASE_Y
-                + broad * 1.8
-                + detail * 0.8;
+                + broad * 4.5
+                + medium * 2.0
+                + detail * 0.7;
 
         double highestDune = 0.0;
 
         int cellX = Math.floorDiv(x, SPACING);
         int cellZ = Math.floorDiv(z, SPACING);
 
-        // On examine les cellules voisines pour éviter les coupures.
+        // On vérifie les cellules voisines.
         for (int gx = cellX - 1; gx <= cellX + 1; gx++) {
             for (int gz = cellZ - 1; gz <= cellZ + 1; gz++) {
 
+                // Toutes les cellules ne contiennent pas une dune.
+                if (unitHash(seed + 777L, gx, gz) > DUNE_CHANCE) {
+                    continue;
+                }
+
                 double centerX = gx * SPACING
                         + SPACING / 2.0
-                        + hashNoise(seed + 1234L, gx, gz) * 4.0;
+                        + hashNoise(seed + 1234L, gx, gz) * 65.0;
 
                 double centerZ = gz * SPACING
                         + SPACING / 2.0
-                        + hashNoise(seed + 5678L, gx, gz) * 4.0;
+                        + hashNoise(seed + 5678L, gx, gz) * 65.0;
 
-                // Tailles variées.
-                double radius = 12.0
-                        + unitHash(seed + 333L, gx, gz) * 6.0;
+                // Dunes très larges : rayon de 70 à 130 blocs.
+                double radius = 70.0
+                        + unitHash(seed + 333L, gx, gz) * 60.0;
 
-                // Hauteurs : surtout 5 à 15 blocs.
-                double r = unitHash(seed + 444L, gx, gz);
-                double duneHeight;
-
-                if (r < 0.15) {
-                    duneHeight = 3.0 + unitHash(seed + 445L, gx, gz) * 2.0;
-                } else if (r < 0.90) {
-                    duneHeight = 5.0 + unitHash(seed + 446L, gx, gz) * 10.0;
-                } else {
-                    duneHeight = 16.0 + unitHash(seed + 447L, gx, gz) * 9.0;
-                }
+                // Dunes douces, pas forcément hautes.
+                double duneHeight = 4.0
+                        + unitHash(seed + 444L, gx, gz) * 8.0;
 
                 double dx = x - centerX;
                 double dz = z - centerZ;
@@ -165,15 +168,14 @@ public final class DuneGenerator extends ChunkGenerator {
                 double angle = Math.atan2(dz, dx);
                 double distance = Math.sqrt(dx * dx + dz * dz);
 
-                // Déformation angulaire : dunes non circulaires.
-                double phase1 = unitHash(seed + 555L, gx, gz) * Math.PI * 2.0;
-                double phase2 = unitHash(seed + 666L, gx, gz) * Math.PI * 2.0;
+                // Forme légèrement irrégulière.
+                double phase = unitHash(seed + 555L, gx, gz)
+                        * Math.PI * 2.0;
 
                 double irregularity =
                         1.0
-                        + 0.16 * Math.sin(angle * 3.0 + phase1)
-                        + 0.09 * Math.sin(angle * 5.0 + phase2)
-                        + 0.05 * Math.sin(angle * 7.0 + phase1 * 0.5);
+                        + 0.10 * Math.sin(angle * 3.0 + phase)
+                        + 0.06 * Math.sin(angle * 5.0 + phase * 0.7);
 
                 double effectiveRadius = radius * irregularity;
 
@@ -181,9 +183,9 @@ public final class DuneGenerator extends ChunkGenerator {
 
                     double t = distance / effectiveRadius;
 
-                    // Pentes irrégulières et sommet moins parfaitement rond.
+                    // Pente très progressive et sommet arrondi.
                     double shape = 0.5 * (1.0 + Math.cos(Math.PI * t));
-                    shape = Math.pow(shape, 1.25);
+                    shape = Math.pow(shape, 1.2);
 
                     double height = duneHeight * shape;
 
@@ -195,7 +197,7 @@ public final class DuneGenerator extends ChunkGenerator {
         return (int) Math.round(ground + highestDune);
     }
 
-    // Bruit interpolé pour éviter un terrain en marches d'escalier.
+    // Bruit interpolé pour un relief sans marches d'escalier.
     private static double valueNoise(
             long seed,
             double x,
@@ -264,7 +266,7 @@ public final class DuneGenerator extends ChunkGenerator {
     private static double unitHash(long seed, int x, int y, int z) {
         long h = seed
                 ^ ((long) x * 0x9E3779B97F4A7C15L)
-                ^ ((long) y * 0xC2B2AE3D27D4EB4FL)
+                ^ ((long) y * 0xC2B2AE3D27EB4FL)
                 ^ ((long) z * 0x165667B19E3779F9L);
 
         h = mix64(h);
