@@ -4,7 +4,7 @@ version: 1.0.0
 main: fr.dunedunes.DuneDesertPlugin
 api-version: '26.3'
 load: STARTUP
-description: Générateur de monde désertique à grandes dunes.
+description: Générateur de monde désertique à grandes dunes et mini-boss Ver de la Mort.
 
 commands:
   dunes:
@@ -12,7 +12,12 @@ commands:
     usage: /dunes <create|tp> <nom>
     permission: dunedesert.admin
 
+  verdelamort:
+    description: Donne l'œuf du Ver de la Mort.
+    usage: /verdelamort give
+    permission: dunedesert.admin
+
 permissions:
   dunedesert.admin:
-    description: Autorise la création et l'accès aux mondes DuneDesert.
+    description: Autorise l'administration de DuneDesert et du Ver de la Mort.
     default: op
