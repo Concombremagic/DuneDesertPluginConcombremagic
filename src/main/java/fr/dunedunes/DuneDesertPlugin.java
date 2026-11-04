@@ -1,6 +1,7 @@
 
 package fr.dunedunes;
 
+import fr.dunedunes.ver.VerDeLaMortEgg;
 import fr.dunedunes.ver.VerDeLaMortListener;
 import fr.dunedunes.ver.VerDeLaMortManager;
 
@@ -25,6 +26,14 @@ public final class DuneDesertPlugin extends JavaPlugin {
                 new VerDeLaMortListener(this),
                 this
         );
+
+        if (getCommand("verdelamort") != null) {
+            getCommand("verdelamort").setExecutor(
+                    new VerDeLaMortEgg(this)
+            );
+        } else {
+            getLogger().severe("La commande verdelamort est absente de plugin.yml !");
+        }
 
         getLogger().info("DuneDesert activé. Commande : /dunes create <nom>");
         getLogger().info("Système du Ver de la Mort initialisé.");
@@ -92,6 +101,7 @@ public final class DuneDesertPlugin extends JavaPlugin {
                 sender.sendMessage("§cMonde introuvable ou non chargé. Crée-le avec /dunes create " + worldName);
                 return true;
             }
+
             if (sender instanceof Player player) {
                 player.teleport(world.getSpawnLocation());
                 sender.sendMessage("§aTéléportation vers " + worldName + ".");
