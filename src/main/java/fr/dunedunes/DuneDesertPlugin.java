@@ -1,4 +1,8 @@
+
 package fr.dunedunes;
+
+import fr.dunedunes.ver.VerDeLaMortListener;
+import fr.dunedunes.ver.VerDeLaMortManager;
 
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -11,9 +15,23 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public final class DuneDesertPlugin extends JavaPlugin {
 
+    private VerDeLaMortManager verDeLaMortManager;
+
     @Override
     public void onEnable() {
+        verDeLaMortManager = new VerDeLaMortManager(this);
+
+        getServer().getPluginManager().registerEvents(
+                new VerDeLaMortListener(this),
+                this
+        );
+
         getLogger().info("DuneDesert activé. Commande : /dunes create <nom>");
+        getLogger().info("Système du Ver de la Mort initialisé.");
+    }
+
+    public VerDeLaMortManager getVerDeLaMortManager() {
+        return verDeLaMortManager;
     }
 
     @Override
