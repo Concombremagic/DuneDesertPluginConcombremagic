@@ -2,7 +2,9 @@ name: Build DuneDesert Plugin
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - ver-de-la-mort
   workflow_dispatch:
 
 jobs:
